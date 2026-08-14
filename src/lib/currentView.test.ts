@@ -15,7 +15,11 @@
  */
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { buildCaptureDialogState, captureCurrentView } from './currentView';
+import {
+  buildCaptureDialogState,
+  captureCurrentView,
+  enrichCaptureDialogStateWithLogsResource,
+} from './currentView';
 
 const mockGetCluster = vi.fn();
 const mockGetRoute = vi.fn();
@@ -152,5 +156,64 @@ describe('buildCaptureDialogState', () => {
     const state = buildCaptureDialogState({ cluster: null, resource: null });
     expect(state.initialValues).toBeUndefined();
     expect(state.helperNote).toMatch(/isn't a recognized built-in resource list/i);
+  });
+});
+
+describe('enrichCaptureDialogStateWithLogsResource', () => {
+  const resource = { kind: 'Pod', apiVersion: 'v1', routeName: 'pods', scope: 'namespaced' as const };
+  const capture = { cluster: 'prod', resource };
+  const base = buildCaptureDialogState(capture);
+
+  it('adds the logs resource name as a search filter and namespace when cluster and kind match', () => {
+    const enriched = enrichCaptureDialogStateWithLogsResource(base, capture, {
+      kind: 'Pod',
+      cluster: 'prod',
+      name: 'my-pod',
+      namespace: 'payments',
+    });
+    expect(enriched.initialValues?.filters).toEqual({ namespaces: ['payments'], search: 'my-pod' });
+    expect(enriched.helperNote).toMatch(/logs for pod "my-pod" are currently open/i);
+  });
+
+  it('omits namespaces when the logs resource has none (cluster-scoped)', () => {
+    const enriched = enrichCaptureDialogStateWithLogsResource(base, capture, {
+      kind: 'Pod',
+      cluster: 'prod',
+      name: 'my-pod',
+    });
+    expect(enriched.initialValues?.filters).toEqual({ namespaces: undefined, search: 'my-pod' });
+  });
+
+  it('returns the base state unchanged when there is no tracked logs resource', () => {
+    expect(enrichCaptureDialogStateWithLogsResource(base, capture, null)).toBe(base);
+  });
+
+  it('returns the base state unchanged when the tracked resource is a different cluster', () => {
+    const enriched = enrichCaptureDialogStateWithLogsResource(base, capture, {
+      kind: 'Pod',
+      cluster: 'staging',
+      name: 'my-pod',
+    });
+    expect(enriched).toBe(base);
+  });
+
+  it('returns the base state unchanged when the tracked resource is a different kind', () => {
+    const enriched = enrichCaptureDialogStateWithLogsResource(base, capture, {
+      kind: 'Service',
+      cluster: 'prod',
+      name: 'my-service',
+    });
+    expect(enriched).toBe(base);
+  });
+
+  it('returns the base state unchanged when the capture has no resource', () => {
+    const unmatchedCapture = { cluster: 'prod', resource: null };
+    const unmatchedBase = buildCaptureDialogState(unmatchedCapture);
+    const enriched = enrichCaptureDialogStateWithLogsResource(unmatchedBase, unmatchedCapture, {
+      kind: 'Pod',
+      cluster: 'prod',
+      name: 'my-pod',
+    });
+    expect(enriched).toBe(unmatchedBase);
   });
 });

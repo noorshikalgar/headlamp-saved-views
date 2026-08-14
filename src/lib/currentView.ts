@@ -112,9 +112,10 @@ export interface CaptureDialogState {
 
 const CAPTURE_MATCHED_NOTE =
   'Captured: this cluster and resource type only — a general "Pod list" style view, not a specific ' +
-  'pod or its logs, even if you had one open. Headlamp doesn’t expose to plugins whether a details ' +
-  'or logs panel is open on top of the list, only the underlying page. Namespace filter and search ' +
-  'text also can’t be read automatically, so add them below if you want them saved.';
+  'pod, even if you had one open. Headlamp doesn’t expose to plugins whether a details panel is open ' +
+  'on top of the list, only the underlying page (logs are an exception — see below if a specific ' +
+  'pod\'s logs were open). Namespace filter and search text also can’t be read automatically, so add ' +
+  'them below if you want them saved.';
 
 const CAPTURE_UNMATCHED_NOTE =
   "That page isn't a recognized built-in resource list, so nothing could be prefilled automatically. " +
@@ -130,5 +131,43 @@ export function buildCaptureDialogState(capture: CurrentViewCapture): CaptureDia
   return {
     initialValues: { cluster: capture.cluster ?? '', resource: capture.resource },
     helperNote: CAPTURE_MATCHED_NOTE,
+  };
+}
+
+/**
+ * If a specific resource's logs are currently open (tracked via the public
+ * LOGS event — see logsActivityTracking.ts, since there is no way to read
+ * this from the URL), enriches the base capture with that resource's exact
+ * name as a search filter. Only applies when the tracked resource's
+ * cluster and kind actually match the current capture, so a stale tracked
+ * value (e.g. logs closed, user navigated to an unrelated list) can't leak
+ * into an unrelated saved view.
+ */
+export function enrichCaptureDialogStateWithLogsResource(
+  base: CaptureDialogState,
+  capture: CurrentViewCapture,
+  logsResource: { kind: string; cluster: string; name?: string; namespace?: string } | null
+): CaptureDialogState {
+  if (
+    !logsResource ||
+    !capture.resource ||
+    logsResource.cluster !== capture.cluster ||
+    logsResource.kind !== capture.resource.kind
+  ) {
+    return base;
+  }
+
+  return {
+    initialValues: {
+      ...base.initialValues,
+      filters: {
+        namespaces: logsResource.namespace ? [logsResource.namespace] : undefined,
+        search: logsResource.name,
+      },
+    },
+    helperNote:
+      `Logs for ${logsResource.kind} "${logsResource.name}" are currently open — captured its exact ` +
+      'name as a search filter too, so opening this saved view later narrows the list down to just ' +
+      'this one.',
   };
 }

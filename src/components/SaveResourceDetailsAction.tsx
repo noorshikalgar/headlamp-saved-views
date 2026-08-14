@@ -15,7 +15,8 @@
  */
 
 import { ActionButton } from '@kinvolk/headlamp-plugin/lib/CommonComponents';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { trackDetailsResource } from '../lib/logsActivityTracking';
 import { findResourceCatalogEntryByKind } from '../lib/resourceCatalog';
 import { useSavedViews } from '../store/configStore';
 import { NewSavedViewInput } from '../types';
@@ -48,21 +49,33 @@ interface DetailsResource {
  * you to the resource's list with a reminder to type that exact name,
  * which — since Headlamp's own search matches by name — narrows the list
  * down to just this one resource.
+ *
+ * Also tracks itself as the "last viewed details resource" (see
+ * logsActivityTracking.ts) — the only way to open the separate Logs
+ * Activity is via a button inside this same details view, so this is how
+ * the app-bar Save View button can still identify which pod's logs are
+ * open, even though the LOGS event itself doesn't reliably carry that.
  */
 export function SaveResourceDetailsAction({ resource }: { resource: DetailsResource | null }) {
   const { create } = useSavedViews();
   const [open, setOpen] = useState(false);
 
-  if (!resource) {
-    return null;
-  }
-  const catalogEntry = findResourceCatalogEntryByKind(resource.kind);
-  if (!catalogEntry) {
-    return null;
-  }
+  const catalogEntry = resource ? findResourceCatalogEntryByKind(resource.kind) : undefined;
+  const name = resource?.getName?.();
+  const namespace = resource?.getNamespace?.();
 
-  const name = resource.getName?.();
-  const namespace = resource.getNamespace?.();
+  useEffect(() => {
+    if (!resource || !catalogEntry) {
+      trackDetailsResource(null);
+      return undefined;
+    }
+    trackDetailsResource({ kind: resource.kind, cluster: resource.cluster, name, namespace });
+    return () => trackDetailsResource(null);
+  }, [resource, catalogEntry, name, namespace]);
+
+  if (!resource || !catalogEntry) {
+    return null;
+  }
 
   const initialValues: Partial<NewSavedViewInput> = {
     cluster: resource.cluster,

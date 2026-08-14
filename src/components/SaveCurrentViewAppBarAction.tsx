@@ -18,7 +18,13 @@ import { Icon } from '@iconify/react';
 import Button from '@mui/material/Button';
 import { useState } from 'react';
 import { useLocation } from 'react-router-dom';
-import { buildCaptureDialogState, captureCurrentView, CaptureDialogState } from '../lib/currentView';
+import {
+  buildCaptureDialogState,
+  captureCurrentView,
+  CaptureDialogState,
+  enrichCaptureDialogStateWithLogsResource,
+} from '../lib/currentView';
+import { getCurrentLogsResource } from '../lib/logsActivityTracking';
 import { useSavedViews } from '../store/configStore';
 import { SavedViewFormDialog } from './SavedViewFormDialog';
 
@@ -54,7 +60,15 @@ export function SaveCurrentViewAppBarAction() {
     <>
       <Button
         size="small"
-        onClick={() => setDialogState(buildCaptureDialogState(capture))}
+        onClick={() =>
+          setDialogState(
+            enrichCaptureDialogStateWithLogsResource(
+              buildCaptureDialogState(capture),
+              capture,
+              getCurrentLogsResource()
+            )
+          )
+        }
         startIcon={<Icon icon="mdi:content-save-outline" width={16} />}
       >
         Save View

@@ -21,9 +21,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Up to 5 favorited views are pinned as direct links under **Saved Views**
   in the sidebar for one-click access, kept in sync as favorites change.
 - "Save a view for this &lt;kind&gt;" action inside a resource's own details
-  view (works inside Headlamp's Activity popup too, e.g. pod logs), which
-  can capture a specific resource's exact name as a search filter — the
-  app-bar action alone can only ever see the underlying list page.
+  view (works inside Headlamp's Activity popup too), which can capture a
+  specific resource's exact name as a search filter — the app-bar action
+  alone can only ever see the underlying list page.
+- The app-bar "Save View" button now also prefills a specific pod's exact
+  name when that pod's logs are open — Headlamp's logs viewer is a
+  separate Activity from the details view, tracked via the public LOGS
+  event combined with the details-view action's own resource reference.
 
 ### Fixed
 
@@ -44,8 +48,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - (Pre-release) "Save View" appeared on every page, including Settings and
   other pages with nothing to capture; it's now only shown on recognized
   resource-list pages.
-- (Pre-release) Opening a specific pod's details/logs and clicking "Save
-  View" silently captured only "Pod, this cluster" with no indication that
-  the specific pod wasn't (and can't be) captured that way — see the new
+- (Pre-release) Opening a specific pod's details and clicking "Save View"
+  silently captured only "Pod, this cluster" with no indication that the
+  specific pod wasn't (and can't be) captured that way — see the new
   details-view action above, and the improved wording when only the
   general list is captured.
+- (Pre-release) The above fix didn't cover Headlamp's dedicated Logs
+  Activity, which is structurally separate from the details view and
+  wasn't reached by `registerDetailsViewSection` — found via a second
+  round of live testing against the exact same pod. Fixed with the LOGS
+  event tracking described above.

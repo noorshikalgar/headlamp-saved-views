@@ -93,11 +93,17 @@ filters, favorite) are configured when you create or edit it.
   "Save Current View" button, for when you're already there.
 - **Save a view for this &lt;kind&gt;** — a button inside a resource's own
   details view (works whether that's opened as a full page or Headlamp's
-  Activity popup — e.g. clicking a pod to see its logs). Since a saved view
-  always targets a list, not one specific resource, this prefills the
-  resource's exact name as a search filter instead of trying to save "just
-  this pod" directly — opening the result later narrows the list down to
-  that one resource once you type/apply the search.
+  Activity popup). Since a saved view always targets a list, not one
+  specific resource, this prefills the resource's exact name as a search
+  filter instead of trying to save "just this pod" directly — opening the
+  result later narrows the list down to that one resource once you
+  type/apply the search.
+- **"Save View" while viewing logs** — Headlamp's pod logs viewer opens as
+  its own separate Activity, distinct from the pod's details view, so the
+  button above doesn't appear inside it. The app-bar "Save View" button
+  handles this instead: if a specific pod's logs are open when you click
+  it, it prefills that pod's exact name as a search filter automatically —
+  no separate button to find inside the logs panel.
 - **Open** — navigates to the saved cluster + resource list. If the view has
   namespace/search/label-selector filters, a tooltip on the Open button
   tells you what to apply manually after the page opens.

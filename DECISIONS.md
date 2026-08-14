@@ -122,6 +122,28 @@ overview. Made reactive to route changes via `useLocation()` from
 `react-router-dom` (a shared dependency, not a private internal) — without
 it, nothing would trigger a re-render when only the hash changes.
 
+**Further revision — the Logs Activity is a different surface entirely.**
+Headlamp's pod logs viewer (opened via "Show Logs" from the pod details
+view) turned out, on live testing, to be a *separate* Activity from the
+resource details view — confirmed by the taskbar showing two independent
+tabs ("Pod: x" and "Logs: x"). `registerDetailsViewSection` genuinely does
+not render inside it; `SaveResourceDetailsAction` has no reach there.
+Checked for a dedicated hook: `registerHeadlampEventCallback` does fire a
+public `LOGS` event on open/close (`src/lib/logsActivityTracking.ts`), and
+its documented type includes an optional `resource` field — but tested
+live and that field is actually never populated on the real payload, only
+`status` comes through. Rather than give up, combined two independent
+public signals: `SaveResourceDetailsAction` already has direct access to
+the resource (it's a component prop), so it now also records itself as the
+"last viewed details resource"; the LOGS event's `status: 'open'` is then
+used purely as a trigger, attributed to whatever was last recorded. This
+works because opening the Logs Activity is only ever reachable by clicking
+a button that lives inside that same details view — not a coincidence, an
+actual invariant of the current UI. Both the event registration
+(`registerHeadlampEventCallback`, like `registerSidebarEntryFilter`,
+appends to a list on every call) and the tracking are covered by
+`src/lib/logsActivityTracking.test.ts`.
+
 ## Decision C — Cluster identity
 
 **Investigated:** `frontend/src/lib/cluster.ts`.
