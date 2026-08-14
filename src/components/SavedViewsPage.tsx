@@ -21,15 +21,19 @@ import Button from '@mui/material/Button';
 import Stack from '@mui/material/Stack';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
-import { useMemo, useState } from 'react';
-import { resolveClusterStatus } from '../lib/clusterIdentity';
-import { captureCurrentView } from '../lib/currentView';
+import { useEffect, useMemo, useState } from 'react';
+import { ClusterResolution, resolveClusterStatus } from '../lib/clusterIdentity';
+import {
+  captureCurrentView,
+  CurrentViewCapture,
+  parseCaptureQueryParams,
+} from '../lib/currentView';
 import { findResourceByRouteName } from '../lib/resourceCatalog';
 import { useSavedViews } from '../store/configStore';
 import { searchSavedViews, sortSavedViews } from '../store/savedViews';
 import { NewSavedViewInput, SavedView } from '../types';
-import { SavedViewCard } from './SavedViewCard';
 import { SavedViewFormDialog } from './SavedViewFormDialog';
+import { SavedViewsTable } from './SavedViewsTable';
 
 type DialogState =
   | { mode: 'closed' }
@@ -37,12 +41,29 @@ type DialogState =
   | { mode: 'edit'; view: SavedView };
 
 const CAPTURE_MATCHED_NOTE =
-  'Cluster and resource type were captured from the current page. Namespace filter and search text ' +
-  "cannot be read from Headlamp's page state (see this plugin's README), so add them below if you want them saved.";
+  'Cluster and resource type were captured from the page you saved from. Namespace filter and search ' +
+  "text cannot be read from Headlamp's page state (see this plugin's README), so add them below if " +
+  'you want them saved.';
 
 const CAPTURE_UNMATCHED_NOTE =
-  "This page isn't a recognized built-in resource list, so nothing could be prefilled automatically. " +
+  "That page isn't a recognized built-in resource list, so nothing could be prefilled automatically. " +
   'Fill in the fields below to save a view.';
+
+/** Shared by the in-page button and the app-bar action handoff (see the mount effect below). */
+function buildCaptureDialogState(capture: CurrentViewCapture): DialogState {
+  if (!capture.resource) {
+    return {
+      mode: 'create',
+      initialValues: capture.cluster ? { cluster: capture.cluster } : undefined,
+      helperNote: CAPTURE_UNMATCHED_NOTE,
+    };
+  }
+  return {
+    mode: 'create',
+    initialValues: { cluster: capture.cluster ?? '', resource: capture.resource },
+    helperNote: CAPTURE_MATCHED_NOTE,
+  };
+}
 
 export function SavedViewsPage() {
   const { views, create, update, duplicate, remove, toggleFavorite } = useSavedViews();
@@ -55,21 +76,45 @@ export function SavedViewsPage() {
     [views, query]
   );
 
-  function handleSaveCurrentView() {
-    const capture = captureCurrentView();
-    if (!capture.resource) {
-      setDialog({
-        mode: 'create',
-        initialValues: capture.cluster ? { cluster: capture.cluster } : undefined,
-        helperNote: CAPTURE_UNMATCHED_NOTE,
-      });
+  // The app-bar "Save View" action (present on every page, including
+  // resource lists) captures the current view and hands it off via query
+  // params, since by the time this page has mounted, window.location no
+  // longer reflects the page the user actually came from. Headlamp uses
+  // hash-based routing, so that query string lives inside
+  // window.location.hash (e.g. "#/c/x/saved-views?svCluster=x"), not
+  // window.location.search.
+  useEffect(() => {
+    const hash = window.location.hash;
+    const queryIndex = hash.indexOf('?');
+    if (queryIndex === -1) {
       return;
     }
-    setDialog({
-      mode: 'create',
-      initialValues: { cluster: capture.cluster ?? '', resource: capture.resource },
-      helperNote: CAPTURE_MATCHED_NOTE,
-    });
+    const { cluster, resourceRouteName } = parseCaptureQueryParams(hash.slice(queryIndex));
+    if (!cluster && !resourceRouteName) {
+      return;
+    }
+    const capture: CurrentViewCapture = {
+      cluster,
+      resource: resourceRouteName ? findResourceByRouteName(resourceRouteName) ?? null : null,
+    };
+    setDialog(buildCaptureDialogState(capture));
+
+    const cleanHash = hash.slice(0, queryIndex);
+    window.history.replaceState(
+      null,
+      '',
+      window.location.pathname + window.location.search + cleanHash
+    );
+    // Only meant to run once, on mount, to consume a one-shot handoff.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  function handleSaveCurrentView() {
+    setDialog(buildCaptureDialogState(captureCurrentView()));
+  }
+
+  function getClusterStatus(view: SavedView): ClusterResolution {
+    return resolveClusterStatus(view.cluster, clustersConf);
   }
 
   return (
@@ -112,23 +157,16 @@ export function SavedViewsPage() {
             {'No saved views yet. Navigate to a resource list and click "Save Current View", or create ' +
               'one manually.'}
           </EmptyContent>
-        ) : visibleViews.length === 0 ? (
-          <EmptyContent>{`No saved views match "${query}".`}</EmptyContent>
         ) : (
-          <Stack spacing={1.5}>
-            {visibleViews.map(view => (
-              <SavedViewCard
-                key={view.id}
-                view={view}
-                clusterStatus={resolveClusterStatus(view.cluster, clustersConf)}
-                resourceAvailable={!!findResourceByRouteName(view.resource.routeName)}
-                onEdit={() => setDialog({ mode: 'edit', view })}
-                onDuplicate={() => duplicate(view.id)}
-                onDelete={() => remove(view.id)}
-                onToggleFavorite={() => toggleFavorite(view.id, !view.favorite)}
-              />
-            ))}
-          </Stack>
+          <SavedViewsTable
+            views={visibleViews}
+            getClusterStatus={getClusterStatus}
+            onEdit={view => setDialog({ mode: 'edit', view })}
+            onDuplicate={view => duplicate(view.id)}
+            onDelete={view => remove(view.id)}
+            onToggleFavorite={view => toggleFavorite(view.id, !view.favorite)}
+            emptyMessage={`No saved views match "${query}".`}
+          />
         )}
       </Stack>
 

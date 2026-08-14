@@ -63,6 +63,32 @@ This is a deliberate, documented scope reduction from a fully "magic" save
 button, and it is the direct, evidence-based reason this plugin will not
 silently invent filter state that isn't actually active.
 
+**Revised after live testing against a real Headlamp instance + kind
+cluster** (not just unit tests, which had mocked assumptions that turned out
+to be wrong in two ways):
+
+1. A "Save Current View" button placed only on the Saved Views page cannot
+   work at all — by the time it's clicked, `window.location` already reflects
+   the Saved Views page, not whatever resource list the user came from. The
+   fix is `registerAppBarAction` (`src/components/SaveCurrentViewAppBarAction.tsx`):
+   a "Save View" button present in the app bar on every page, which captures
+   the view at the actual moment of intent and hands the result to the Saved
+   Views page via plain URL query parameters (`svCluster`, `svResource`) on
+   navigation — still a public, URL-based mechanism, not shared component
+   state or storage.
+2. Headlamp uses hash-based routing everywhere (confirmed live:
+   `window.location.pathname` is always `/`; the real route lives in
+   `window.location.hash`, e.g. `#/c/prod/pods`). `captureCurrentView()`
+   parses the pathname out of the hash, not `window.location.pathname`.
+3. `Router.getRoutePath()` returns the route's path *template*, literally
+   including `:cluster` (e.g. `/c/:cluster/pods`), not a cluster-resolved
+   path. Matching substitutes the actual cluster name into that placeholder
+   before comparing, rather than trying to strip a cluster prefix from the
+   observed pathname (the original, wrong approach).
+
+Both are covered by `src/lib/currentView.test.ts`, with the mocked route
+shapes corrected to match what's actually observed from a live instance.
+
 ## Decision C — Cluster identity
 
 **Investigated:** `frontend/src/lib/cluster.ts`.
@@ -127,6 +153,18 @@ navigates to the correct cluster and resource list, and pre-fills what the
 public API allows; it does not silently replay a fully filtered view for
 built-in resource kinds. See `src/lib/currentView.ts` and
 `src/lib/savedViewUrl.ts` for the implementation boundary.
+
+## List UI: table, not cards
+
+The Saved Views list uses Headlamp's `SimpleTable` component (the same
+CSS-grid table primitive Headlamp's own resource lists are built on),
+rather than a custom card layout — sortable columns, compact rows, and a
+visual language that matches the rest of the app instead of introducing a
+new one. `SimpleTable` was chosen over the richer `Table` (built on
+`material-react-table`) for lower API risk: `SimpleTable`'s column shape
+(`label`/`getter`/`sort`) is simple enough to get right without a working
+example to copy from, while `material-react-table`'s column-definition API
+is easy to get subtly wrong without one. See `src/components/SavedViewsTable.tsx`.
 
 ## Persistence
 

@@ -72,15 +72,31 @@ export function SavedViewFormDialog({
     ...initialValues,
   }));
   const [errors, setErrors] = useState<string[]>([]);
+  const [namespaceInput, setNamespaceInput] = useState('');
 
   useEffect(() => {
     if (open) {
       setValues({ ...emptyValues(), ...initialValues });
       setErrors([]);
+      setNamespaceInput('');
     }
     // Only reset when the dialog is (re)opened, not on every parent render.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
+
+  /** Commits whatever the user typed but didn't press Enter for, so losing
+   * focus doesn't silently discard a namespace they clearly meant to add. */
+  function commitPendingNamespace() {
+    const trimmed = namespaceInput.trim();
+    if (!trimmed) {
+      return;
+    }
+    setValues(v => ({
+      ...v,
+      filters: { ...v.filters, namespaces: [...(v.filters?.namespaces ?? []), trimmed] },
+    }));
+    setNamespaceInput('');
+  }
 
   const selectedResource =
     resourceCatalog.find(
@@ -88,7 +104,22 @@ export function SavedViewFormDialog({
     ) ?? null;
 
   function handleSubmit() {
-    const result = onSubmit(values);
+    // Merged inline rather than via commitPendingNamespace(), since a
+    // setState call here wouldn't be reflected in `values` until after this
+    // function returns — submitting must not silently drop typed-but-not
+    // "Enter"-ed text.
+    const pending = namespaceInput.trim();
+    const submitValues = pending
+      ? {
+          ...values,
+          filters: {
+            ...values.filters,
+            namespaces: [...(values.filters?.namespaces ?? []), pending],
+          },
+        }
+      : values;
+
+    const result = onSubmit(submitValues);
     if (!result.ok) {
       setErrors(result.errors ?? ['Could not save this view.']);
       return;
@@ -165,12 +196,20 @@ export function SavedViewFormDialog({
             freeSolo
             options={[]}
             value={values.filters?.namespaces ?? []}
-            onChange={(_e, newValue) =>
+            inputValue={namespaceInput}
+            onInputChange={(_e, newInputValue, reason) => {
+              if (reason !== 'reset') {
+                setNamespaceInput(newInputValue);
+              }
+            }}
+            onChange={(_e, newValue) => {
               setValues(v => ({
                 ...v,
                 filters: { ...v.filters, namespaces: newValue as string[] },
-              }))
-            }
+              }));
+              setNamespaceInput('');
+            }}
+            onBlur={commitPendingNamespace}
             renderInput={params => (
               <TextField
                 {...params}

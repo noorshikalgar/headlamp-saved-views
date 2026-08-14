@@ -14,8 +14,15 @@
  * limitations under the License.
  */
 
-import { registerRoute, registerSidebarEntry } from '@kinvolk/headlamp-plugin/lib';
+import {
+  registerAppBarAction,
+  registerRoute,
+  registerSidebarEntry,
+} from '@kinvolk/headlamp-plugin/lib';
+import { SaveCurrentViewAppBarAction } from './components/SaveCurrentViewAppBarAction';
 import { SavedViewsPage } from './components/SavedViewsPage';
+
+registerAppBarAction(SaveCurrentViewAppBarAction);
 
 registerSidebarEntry({
   parent: null,

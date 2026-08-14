@@ -83,24 +83,30 @@ filters, favorite) are configured when you create or edit it.
 - **Create Saved View** — opens a blank form: name, description, cluster,
   resource type, and optional filters (namespaces, search text, label
   selector).
-- **Save Current View** — opens the same form, prefilled with what can be
-  reliably determined from the page you're currently on (cluster and, if
-  the page is a recognized built-in resource list, that resource's kind).
+- **Save View** — a button in Headlamp's app bar, visible on every page.
+  Click it from a resource list (e.g. Pods) to open the create form
+  prefilled with what can be reliably determined from that page (cluster
+  and, if it's a recognized built-in resource list, that resource's kind).
   Namespace filter and search text are **not** auto-filled — see
   [Limitations](#10-limitations) for why — so add them yourself if you want
-  them saved.
+  them saved. The Saved Views page also has its own "Save Current View"
+  button, which behaves the same way if you're already there (it just won't
+  have a resource list to prefill from).
 - **Open** — navigates to the saved cluster + resource list. If the view has
-  namespace/search/label-selector filters, a note tells you what to apply
-  manually after the page opens.
+  namespace/search/label-selector filters, a tooltip on the Open button
+  tells you what to apply manually after the page opens.
 - **Edit** — change any field. `createdAt` is preserved; `updatedAt` bumps.
 - **Duplicate** — creates a copy (suffixed "(copy)") to use as a starting
   point for a variant.
 - **Favorite** — pins a view to the top of the list (favorites sort first,
-  then most-recently-updated).
+  then most-recently-updated); also a sortable table column.
 - **Delete** — requires confirmation; cannot be undone.
 - **Search** — the search box on the Saved Views page filters your saved
   views by name/description/cluster/resource/filters. It does not search
   Kubernetes resources.
+
+The list itself is a sortable table (click any column header), matching the
+layout of Headlamp's own resource lists rather than a custom card design.
 
 ## 9. Manual test procedure
 
@@ -109,22 +115,23 @@ few things only make sense to verify against a running Headlamp:
 
 1. Install the plugin (see [Development](#6-development)) against a
    Headlamp instance connected to any cluster.
-2. Navigate to a built-in resource list (e.g. Pods) and click
-   **Save Current View** — confirm cluster and resource kind are prefilled
-   and namespace/search are blank with an explanatory note.
+2. Navigate to a built-in resource list (e.g. Pods), set a namespace filter,
+   and click **Save View** in the app bar — confirm cluster and resource
+   kind are prefilled and namespace/search are blank with an explanatory
+   note.
 3. Fill in a namespace and search string, save it.
-4. Go to **Saved Views** in the sidebar, confirm the view appears and
-   **Open** navigates to the correct cluster + resource list, with a note
-   listing the namespace/search to apply manually.
-5. Edit the view, change its name, confirm `updatedAt` changes and the view
-   list re-sorts if you toggled favorite.
+4. Go to **Saved Views** in the sidebar, confirm the view appears in the
+   table and **Open** navigates to the correct cluster + resource list,
+   with a tooltip listing the namespace/search to apply manually.
+5. Edit the view, change its name, confirm `updatedAt` changes and the row
+   re-sorts if you toggled favorite.
 6. Duplicate it, confirm a "(copy)" entry appears with a new id.
 7. Delete the duplicate — confirm the confirmation dialog appears and
    cannot be bypassed accidentally.
 8. Reload Headlamp entirely — confirm the remaining saved view is still
    there (ConfigStore persistence survives reload).
 9. If you can, remove/rename the cluster the saved view points at, or
-   disconnect it — confirm the card shows a "cluster not currently
+   disconnect it — confirm the row shows a "cluster not currently
    configured" warning and Open is disabled, rather than crashing or
    redirecting to a different cluster.
 10. Toggle Headlamp's dark theme — confirm the page and dialogs remain
@@ -132,6 +139,10 @@ few things only make sense to verify against a running Headlamp:
 11. Test on an account with restricted RBAC (can't list namespaces) —
     confirm the form still works (namespaces are typed, not listed) and no
     error is thrown.
+
+Steps 1–8 have been run against a real Headlamp instance (both Desktop and
+the official Docker image) connected to a local `kind` cluster as part of
+developing this plugin, and pass.
 
 ## 10. Limitations
 
