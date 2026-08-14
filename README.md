@@ -104,9 +104,15 @@ filters, favorite) are configured when you create or edit it.
   handles this instead: if a specific pod's logs are open when you click
   it, it prefills that pod's exact name as a search filter automatically —
   no separate button to find inside the logs panel.
-- **Open** — navigates to the saved cluster + resource list. If the view has
-  namespace/search/label-selector filters, a tooltip on the Open button
-  tells you what to apply manually after the page opens.
+- **Open** — navigates to the saved cluster + resource list, **with
+  namespace and search filters already applied** (Headlamp's list views
+  support this via URL query params — `?namespace=...&filter=...`). A
+  saved view with a label selector is the one exception — Headlamp has no
+  URL-bindable concept of one, so a tooltip on Open tells you to apply it
+  manually. **Note:** this full auto-apply only works from the **table's**
+  Open button — pinned sidebar favorites (below) only carry cluster +
+  resource, not namespace/search, because of a Headlamp sidebar quirk (see
+  [Limitations](#10-limitations)).
 - **Edit** — change any field. `createdAt` is preserved; `updatedAt` bumps.
 - **Duplicate** — creates a copy (suffixed "(copy)") to use as a starting
   point for a variant.
@@ -135,8 +141,9 @@ few things only make sense to verify against a running Headlamp:
    note.
 3. Fill in a namespace and search string, save it.
 4. Go to **Saved Views** in the sidebar, confirm the view appears in the
-   table and **Open** navigates to the correct cluster + resource list,
-   with a tooltip listing the namespace/search to apply manually.
+   table and clicking **Open** navigates to the correct cluster + resource
+   list with the namespace and search already applied — the list should
+   already be filtered, not just showing the right page.
 5. Edit the view, change its name, confirm `updatedAt` changes and the row
    re-sorts if you toggled favorite.
 6. Duplicate it, confirm a "(copy)" entry appears with a new id.
@@ -170,10 +177,17 @@ developing this plugin, and pass.
   depending on private internals — which this plugin deliberately avoids
   doing, so it keeps working across Headlamp upgrades. See `DECISIONS.md`
   Decision B.
-- **Opening a saved view doesn't auto-apply namespace/search filters.**
-  Built-in resource list routes don't carry that state in the URL, so this
-  plugin navigates to the correct cluster + resource and tells you what to
-  apply manually, rather than silently dropping the information.
+- **Pinned sidebar favorites don't auto-apply namespace/search, only the
+  table's Open button does.** Headlamp's built-in list views *do* support
+  namespace/search via URL query params, and the table's Open button uses
+  that. But `registerSidebarEntry` unconditionally appends its own
+  `?namespace=...` to every sidebar link's URL with no check for an
+  existing `?` — a pinned favorite whose own URL already had one produced
+  a broken link (reproduced live: Headlamp's own "page doesn't exist"
+  error). So pinned favorites intentionally carry only cluster + resource;
+  open the Saved Views table for the fully filtered version. Label
+  selector is unsupported everywhere — no URL-bindable concept of one on
+  Headlamp's list views.
 - **Saved views are local to this browser profile.** They are not
   synchronized across machines and are not shareable as-is (a view
   referencing a cluster name may not resolve the same way elsewhere). Import

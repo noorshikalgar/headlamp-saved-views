@@ -16,7 +16,7 @@
 
 import { registerSidebarEntry, registerSidebarEntryFilter } from '@kinvolk/headlamp-plugin/lib';
 import { useEffect } from 'react';
-import { buildSavedViewUrl } from '../lib/savedViewUrl';
+import { buildSavedViewBaseUrl } from '../lib/savedViewUrl';
 import { useSavedViews } from '../store/configStore';
 import { sortSavedViews } from '../store/savedViews';
 
@@ -84,11 +84,13 @@ export function SidebarFavoritesSync() {
         name: `saved-view-slot-${index}`,
         label: view ? view.name : '',
         // The URL is already resolved to the view's own cluster (which may
-        // not be the currently selected one) via buildSavedViewUrl, so
+        // not be the currently selected one) via buildSavedViewBaseUrl, so
         // Headlamp must not additionally prefix it with the current
-        // cluster's path.
+        // cluster's path. Deliberately the query-string-free base URL, not
+        // buildSavedViewUrl's — see that function's doc for why a sidebar
+        // url can't safely carry a query string.
         useClusterURL: false,
-        url: view ? buildSavedViewUrl(view).url : '',
+        url: view ? buildSavedViewBaseUrl(view) : '',
         icon: 'mdi:star',
       });
     }

@@ -16,7 +16,7 @@
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { SavedView } from '../types';
-import { buildSavedViewUrl } from './savedViewUrl';
+import { buildSavedViewBaseUrl, buildSavedViewSearchParams, buildSavedViewUrl } from './savedViewUrl';
 
 const mockCreateRouteURL = vi.fn();
 
@@ -41,21 +41,73 @@ function makeView(overrides: Partial<SavedView> = {}): SavedView {
   };
 }
 
+describe('buildSavedViewSearchParams', () => {
+  it('is empty when the view has no namespace/search filters', () => {
+    expect(buildSavedViewSearchParams(makeView({ filters: {} }))).toEqual({});
+  });
+
+  it('joins multiple namespaces with a space (Headlamp encodes that as "+")', () => {
+    expect(
+      buildSavedViewSearchParams(makeView({ filters: { namespaces: ['payments', 'billing'] } }))
+    ).toEqual({ namespace: 'payments billing' });
+  });
+
+  it('maps search text to the "filter" param — the name Headlamp actually binds to', () => {
+    expect(buildSavedViewSearchParams(makeView({ filters: { search: 'CrashLoop' } }))).toEqual({
+      filter: 'CrashLoop',
+    });
+  });
+
+  it('combines namespace and search when both are set', () => {
+    expect(
+      buildSavedViewSearchParams(
+        makeView({ filters: { namespaces: ['payments'], search: 'CrashLoop' } })
+      )
+    ).toEqual({ namespace: 'payments', filter: 'CrashLoop' });
+  });
+
+  it('does not include a param for label selector — there is no URL binding for it', () => {
+    expect(buildSavedViewSearchParams(makeView({ filters: { labelSelector: 'app=api' } }))).toEqual(
+      {}
+    );
+  });
+});
+
+describe('buildSavedViewBaseUrl', () => {
+  beforeEach(() => {
+    mockCreateRouteURL.mockReset();
+    mockCreateRouteURL.mockReturnValue('/c/prod/pods');
+  });
+
+  it('delegates to Router.createRouteURL with the resource route name and cluster', () => {
+    buildSavedViewBaseUrl(makeView());
+    expect(mockCreateRouteURL).toHaveBeenCalledWith('pods', { cluster: 'prod' });
+  });
+
+  it('never includes a query string — required for registerSidebarEntry urls', () => {
+    const url = buildSavedViewBaseUrl(
+      makeView({ filters: { namespaces: ['payments'], search: 'CrashLoop' } })
+    );
+    expect(url).not.toContain('?');
+  });
+});
+
 describe('buildSavedViewUrl', () => {
   beforeEach(() => {
     mockCreateRouteURL.mockReset();
     mockCreateRouteURL.mockReturnValue('/c/prod/pods');
   });
 
-  it('delegates URL construction to Router.createRouteURL with the resource route name and cluster', () => {
-    buildSavedViewUrl(makeView());
-    expect(mockCreateRouteURL).toHaveBeenCalledWith('pods', { cluster: 'prod' });
+  it('returns the base URL unchanged when there are no namespace/search filters', () => {
+    const result = buildSavedViewUrl(makeView({ filters: {} }));
+    expect(result.url).toBe('/c/prod/pods');
   });
 
-  it('returns the URL Router.createRouteURL produces', () => {
-    mockCreateRouteURL.mockReturnValue('/c/prod/pods');
-    const result = buildSavedViewUrl(makeView());
-    expect(result.url).toBe('/c/prod/pods');
+  it('appends namespace and filter query params when set', () => {
+    const result = buildSavedViewUrl(
+      makeView({ filters: { namespaces: ['payments', 'billing'], search: 'CrashLoop' } })
+    );
+    expect(result.url).toBe('/c/prod/pods?namespace=payments+billing&filter=CrashLoop');
   });
 
   it('reports no unapplied filters when the view has none', () => {
@@ -63,25 +115,15 @@ describe('buildSavedViewUrl', () => {
     expect(result.unappliedFilters).toEqual([]);
   });
 
-  it('reports namespace, search, and label selector as unapplied filters', () => {
+  it('does not report namespace or search as unapplied — they are now baked into the URL', () => {
     const result = buildSavedViewUrl(
-      makeView({
-        filters: {
-          namespaces: ['payments', 'billing'],
-          search: 'CrashLoop',
-          labelSelector: 'app=api',
-        },
-      })
+      makeView({ filters: { namespaces: ['payments'], search: 'CrashLoop' } })
     );
-    expect(result.unappliedFilters).toEqual([
-      'Namespace: payments, billing',
-      'Search: "CrashLoop"',
-      'Label selector: app=api',
-    ]);
+    expect(result.unappliedFilters).toEqual([]);
   });
 
-  it('omits filter descriptions for filters that were not set', () => {
-    const result = buildSavedViewUrl(makeView({ filters: { search: 'CrashLoop' } }));
-    expect(result.unappliedFilters).toEqual(['Search: "CrashLoop"']);
+  it('still reports label selector as unapplied — no known URL binding for it', () => {
+    const result = buildSavedViewUrl(makeView({ filters: { labelSelector: 'app=api' } }));
+    expect(result.unappliedFilters).toEqual(['Label selector: app=api']);
   });
 });

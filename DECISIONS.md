@@ -227,15 +227,61 @@ The plugin registers:
 
 Opening a saved view does not use a plugin-owned "viewer" route. Instead it
 navigates directly to Headlamp's own resource route for the stored resource
-kind (e.g. `/c/<cluster>/pods`) with the namespace/search state applied via
-the same mechanisms a user would use manually (namespace filter selection,
-search box), since — per Decision B — there is no public way to encode
-arbitrary filter state into a URL that a built-in list route will pick up
-automatically. This is documented as a limitation: opening a saved view
-navigates to the correct cluster and resource list, and pre-fills what the
-public API allows; it does not silently replay a fully filtered view for
-built-in resource kinds. See `src/lib/currentView.ts` and
-`src/lib/savedViewUrl.ts` for the implementation boundary.
+kind (e.g. `/c/<cluster>/pods`).
+
+**Revised — namespace and search genuinely are URL-bindable, contrary to
+the original Decision B write-up.** That decision was right that there's
+no way to read arbitrary *current* filter state out of Headlamp (private
+Redux, no export) — but reading and *setting* are different questions, and
+the original research never checked whether the built-in list route itself
+would honor filter state supplied via URL on load. It does: Headlamp's
+`Table` component (`frontend/src/components/common/Table/Table.tsx`) binds
+its search box to a URL query param through `useQueryParamsState` whenever
+`reflectInURL` is set, which the Pods list (and, empirically, others) do.
+Confirmed on a genuinely fresh page load (not just live SPA navigation, to
+rule out stale component state): `?namespace=payments&filter=CrashLoop`
+correctly pre-selects the namespace and pre-fills+applies the search box,
+actually filtering the list — not just cosmetically populating the input.
+Multiple namespaces join with a space (`URLSearchParams` encodes that as
+`+`), matching what Headlamp's own UI produces when you select more than
+one manually.
+
+Two wrong param-name guesses before landing on the right one, worth
+recording: `?search=` does nothing (silently ignored); `?podsfilter=` was
+a reasonable-looking guess from reading `pod/List.tsx`'s
+`reflectTableInURL = 'pods'` default on `main` branch, but doesn't work
+against the actually-installed version — the two are not in lockstep.
+The real, working param is plain `?filter=`, found only by typing into the
+real search box and watching what actually appeared in the URL bar, not by
+reading source further. `Router.createRouteURL` does not build this query
+string itself (verified: passing `namespace`/`filter` as extra params to
+it does nothing, since they don't match a `:placeholder` in the route's
+path pattern) — `buildSavedViewSearchParams`/`buildSavedViewUrl` in
+`src/lib/savedViewUrl.ts` build and append it by hand.
+
+Label selector remains genuinely unsupported — checked the "Show/Hide
+filters" panel live, and it filters by table columns (Status, IP, ...),
+not by Kubernetes label selector. That one still surfaces as an
+"apply manually" note.
+
+**A second, related bug found only by testing the *sidebar* path
+specifically, not just the table's Open button:** `registerSidebarEntry`'s
+`url` field cannot safely carry a query string. Headlamp unconditionally
+appends its own `?namespace=<currently selected>` to every sidebar
+entry's href (apparently to carry the active namespace filter across
+sidebar navigation), with no check for whether the url already has a `?`
+in it. A pinned favorite built from the query-string-bearing URL produced
+`...pods?namespace=payments?namespace=payments` and Headlamp's router
+couldn't resolve it — a real, reproduced "Whoops! This page doesn't exist"
+page, not a hypothetical. `buildSavedViewBaseUrl` (query-string-free) is
+what `SidebarFavoritesSync.tsx` actually uses now; the table's Open button
+and `Link`'s own `search` prop (see `SavedViewsTable.tsx`) don't have this
+problem, since they go through React Router properly rather than a raw
+href string, so they keep full namespace+search auto-apply. This means
+pinned sidebar favorites and the table's Open button are not equivalent:
+the sidebar link is cluster+resource only, the table's Open link is fully
+filtered. Documented in the README as a real, current asymmetry, not
+smoothed over.
 
 ## List UI: table, not cards
 

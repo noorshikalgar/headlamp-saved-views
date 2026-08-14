@@ -28,6 +28,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   name when that pod's logs are open — Headlamp's logs viewer is a
   separate Activity from the details view, tracked via the public LOGS
   event combined with the details-view action's own resource reference.
+- **Opening a saved view from the table now actually applies namespace and
+  search filters**, not just navigates to the right list — Headlamp's
+  built-in list views bind those to URL query params
+  (`?namespace=...&filter=...`), found by reading the actual component
+  source and confirmed live on a fresh page load. Label selector remains
+  unsupported (no URL binding exists for it).
 
 ### Fixed
 
@@ -58,3 +64,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   wasn't reached by `registerDetailsViewSection` — found via a second
   round of live testing against the exact same pod. Fixed with the LOGS
   event tracking described above.
+- (Pre-release) Pinned sidebar favorites broke ("Whoops! This page doesn't
+  exist") once their URLs started carrying namespace/search query params —
+  Headlamp appends its own `?namespace=...` to every sidebar link
+  unconditionally, producing a malformed double query string. Pinned
+  favorites now use a query-string-free URL; the table's Open button
+  (which doesn't have this problem) keeps full filter auto-apply.
