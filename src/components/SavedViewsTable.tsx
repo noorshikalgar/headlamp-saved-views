@@ -23,7 +23,7 @@ import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import { ClusterResolution } from '../lib/clusterIdentity';
 import { findResourceByRouteName } from '../lib/resourceCatalog';
-import { buildSavedViewSearchParams, buildSavedViewUrl } from '../lib/savedViewUrl';
+import { buildSavedViewLinkTarget, buildSavedViewUrl } from '../lib/savedViewUrl';
 import { SavedView } from '../types';
 
 export interface SavedViewsTableProps {
@@ -147,6 +147,7 @@ export function SavedViewsTable({
             const resourceAvailable = !!findResourceByRouteName(view.resource.routeName);
             const canOpen = status.status === 'found' && resourceAvailable;
             const { unappliedFilters } = buildSavedViewUrl(view);
+            const linkTarget = buildSavedViewLinkTarget(view);
             const openTooltip = !canOpen
               ? status.status === 'not-found'
                 ? 'Cluster not currently configured'
@@ -161,9 +162,9 @@ export function SavedViewsTable({
                   <span>
                     {canOpen ? (
                       <Link
-                        routeName={view.resource.routeName}
-                        params={{ cluster: view.cluster }}
-                        search={buildSavedViewSearchParams(view)}
+                        routeName={linkTarget.routeName}
+                        params={linkTarget.params}
+                        search={linkTarget.search}
                       >
                         <IconButton size="small" aria-label={`Open ${view.name}`}>
                           <Icon icon="mdi:open-in-new" width={18} />

@@ -164,14 +164,17 @@ describe('enrichCaptureDialogStateWithLogsResource', () => {
   const capture = { cluster: 'prod', resource };
   const base = buildCaptureDialogState(capture);
 
-  it('adds the logs resource name as a search filter and namespace when cluster and kind match', () => {
+  it('adds the logs resource exact name and namespace when cluster and kind match', () => {
     const enriched = enrichCaptureDialogStateWithLogsResource(base, capture, {
       kind: 'Pod',
       cluster: 'prod',
       name: 'my-pod',
       namespace: 'payments',
     });
-    expect(enriched.initialValues?.filters).toEqual({ namespaces: ['payments'], search: 'my-pod' });
+    expect(enriched.initialValues?.filters).toEqual({
+      namespaces: ['payments'],
+      resourceName: 'my-pod',
+    });
     expect(enriched.helperNote).toMatch(/logs for pod "my-pod" are currently open/i);
   });
 
@@ -181,7 +184,10 @@ describe('enrichCaptureDialogStateWithLogsResource', () => {
       cluster: 'prod',
       name: 'my-pod',
     });
-    expect(enriched.initialValues?.filters).toEqual({ namespaces: undefined, search: 'my-pod' });
+    expect(enriched.initialValues?.filters).toEqual({
+      namespaces: undefined,
+      resourceName: 'my-pod',
+    });
   });
 
   it('returns the base state unchanged when there is no tracked logs resource', () => {

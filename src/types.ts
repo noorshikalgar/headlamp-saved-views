@@ -29,6 +29,17 @@ export interface ResourceRef {
   apiVersion: string;
   /** URL path segment for this resource's built-in list route. */
   routeName: string;
+  /**
+   * Headlamp's route name for this resource's own details page (e.g.
+   * "Pod" for the "pods" list route), when Headlamp exposes one —
+   * confirmed live via `K8s.ResourceClasses.Pod.detailsRoute === "Pod"`,
+   * a static property inherited from Headlamp's base resource class. Used
+   * to deep-link straight to one specific captured resource instead of a
+   * filtered list — see `resourceName` on {@link SavedViewFilters}. Not
+   * every resource class is guaranteed to expose this, so callers must
+   * fall back to `routeName` + filters when it's absent.
+   */
+  detailsRoute?: string;
   /** Whether this resource is namespaced or cluster-scoped. */
   scope: 'namespaced' | 'cluster';
 }
@@ -44,6 +55,16 @@ export interface SavedViewFilters {
   search?: string;
   /** A Kubernetes label selector string, e.g. "app=nginx,tier!=frontend". */
   labelSelector?: string;
+  /**
+   * Exact name of one specific resource this view targets — always
+   * captured from a resource's own details view or its logs Activity
+   * (see SaveResourceDetailsAction, logsActivityTracking), never typed by
+   * the user. When set alongside a `resource.detailsRoute`, opening this
+   * view jumps straight to that resource's own details page instead of a
+   * filtered list. Falls back to filtering the list by this name (same as
+   * `search`) when no details route is available for the resource kind.
+   */
+  resourceName?: string;
 }
 
 /** The current schema version for a single saved view record. */

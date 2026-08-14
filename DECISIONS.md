@@ -283,6 +283,51 @@ the sidebar link is cluster+resource only, the table's Open link is fully
 filtered. Documented in the README as a real, current asymmetry, not
 smoothed over.
 
+## Deep-linking to a specific resource
+
+The natural next question once namespace/search were confirmed URL-bindable
+(above): if a saved view was captured from a *specific* resource's details
+view or logs (`SaveResourceDetailsAction`, or the app-bar button while a
+pod's logs are open — see Decision B), can opening it land the user
+directly on that resource instead of a filtered list they still have to
+click into?
+
+**Yes, partially — confirmed live.** `K8s.ResourceClasses.<Kind>` exposes a
+`detailsRoute` static property (e.g. `Pod.detailsRoute === "Pod"`) alongside
+the already-used `listRoute` — inherited via the class prototype chain, so
+it doesn't show up via `Object.getOwnPropertyNames` but reads fine as a
+direct property access. `Router.createRouteURL('Pod', { cluster, namespace,
+name })` correctly resolves it to `/c/<cluster>/pods/<namespace>/<name>`,
+and navigating there directly (not via a simulated click — a real
+`navigate`/page load) renders the resource's actual details page. This is a
+real route, unlike the Activity popup you get from clicking a row in the
+list (which never changes `window.location.hash` at all — see below).
+`resourceCatalog.ts` now captures `detailsRoute` alongside `listRoute`, and
+`filters.resourceName` (new field, replacing the previous use of `search`
+for this purpose) marks a saved view as targeting one specific,
+exactly-named resource rather than a typed search string.
+`buildSavedViewLinkTarget` in `src/lib/savedViewUrl.ts` picks the direct
+resource link when both `resourceName` and `resource.detailsRoute` are
+available (and, for namespaced kinds, a namespace was captured), falling
+back to the list+filter behavior otherwise — verified live for both the
+table's Open button and, since the details-route URL has no query string,
+the pinned sidebar favorites too (Headlamp's forced `?namespace=...`
+suffix — see the sidebar bug above — is harmless appended to a path with no
+pre-existing `?`).
+
+**No further — there is no way to also auto-open the Logs Activity from
+there**, confirmed by monkey-patching `Activity.launch` (itself a real,
+exported `pluginLib` function — `window.pluginLib.Activity.launch`) in a
+live browser console and inspecting what Headlamp's own "Show Logs" button
+actually dispatches: a `content` prop that's a private, unexported React
+component (`content.type` is a bare function reference, not anything
+`pluginLib` exposes) bound to the already-fetched pod JSON. A plugin has no
+way to construct that content itself — there's no `LogViewer` or similar in
+`pluginLib`'s key list. So the resource's own details page (where "Show
+Logs" is one visible click away) is as close as a saved view can get to
+"open straight to logs"; the helper note shown when capturing from a live
+logs view says so explicitly rather than implying full automation.
+
 ## List UI: table, not cards
 
 The Saved Views list uses Headlamp's `SimpleTable` component (the same

@@ -16,7 +16,12 @@
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { SavedView } from '../types';
-import { buildSavedViewBaseUrl, buildSavedViewSearchParams, buildSavedViewUrl } from './savedViewUrl';
+import {
+  buildSavedViewBaseUrl,
+  buildSavedViewLinkTarget,
+  buildSavedViewSearchParams,
+  buildSavedViewUrl,
+} from './savedViewUrl';
 
 const mockCreateRouteURL = vi.fn();
 
@@ -24,7 +29,28 @@ vi.mock('@kinvolk/headlamp-plugin/lib', () => ({
   Router: { createRouteURL: (name: string, params?: unknown) => mockCreateRouteURL(name, params) },
 }));
 
-const resource = { kind: 'Pod', apiVersion: 'v1', routeName: 'pods', scope: 'namespaced' as const };
+const podResource = {
+  kind: 'Pod',
+  apiVersion: 'v1',
+  routeName: 'pods',
+  detailsRoute: 'Pod',
+  scope: 'namespaced' as const,
+};
+
+const noDetailsRouteResource = {
+  kind: 'Widget',
+  apiVersion: 'v1',
+  routeName: 'widgets',
+  scope: 'namespaced' as const,
+};
+
+const nodeResource = {
+  kind: 'Node',
+  apiVersion: 'v1',
+  routeName: 'nodes',
+  detailsRoute: 'Node',
+  scope: 'cluster' as const,
+};
 
 function makeView(overrides: Partial<SavedView> = {}): SavedView {
   return {
@@ -32,7 +58,7 @@ function makeView(overrides: Partial<SavedView> = {}): SavedView {
     schemaVersion: 1,
     name: 'My view',
     cluster: 'prod',
-    resource,
+    resource: podResource,
     filters: {},
     favorite: false,
     createdAt: '2026-01-01T00:00:00.000Z',
@@ -40,6 +66,27 @@ function makeView(overrides: Partial<SavedView> = {}): SavedView {
     ...overrides,
   };
 }
+
+beforeEach(() => {
+  mockCreateRouteURL.mockReset();
+  mockCreateRouteURL.mockImplementation((routeName: string, params: Record<string, string>) => {
+    const segments = [`/c/${params.cluster}`];
+    if (routeName === 'pods' || routeName === 'nodes' || routeName === 'widgets') {
+      segments.push(`/${routeName}`);
+    } else {
+      // Details routes are keyed by kind (e.g. "Pod", "Node") — mimic
+      // Headlamp's real list-route-lowercased-plural path shape.
+      segments.push(`/${routeName.toLowerCase()}s`);
+    }
+    if (params.namespace) {
+      segments.push(`/${params.namespace}`);
+    }
+    if (params.name) {
+      segments.push(`/${params.name}`);
+    }
+    return segments.join('');
+  });
+});
 
 describe('buildSavedViewSearchParams', () => {
   it('is empty when the view has no namespace/search filters', () => {
@@ -58,12 +105,18 @@ describe('buildSavedViewSearchParams', () => {
     });
   });
 
-  it('combines namespace and search when both are set', () => {
+  it('falls back to resourceName for the filter param when there is no typed search', () => {
+    expect(
+      buildSavedViewSearchParams(makeView({ filters: { resourceName: 'payments-api-xyz' } }))
+    ).toEqual({ filter: 'payments-api-xyz' });
+  });
+
+  it('prefers typed search over resourceName if somehow both are set', () => {
     expect(
       buildSavedViewSearchParams(
-        makeView({ filters: { namespaces: ['payments'], search: 'CrashLoop' } })
+        makeView({ filters: { search: 'CrashLoop', resourceName: 'payments-api-xyz' } })
       )
-    ).toEqual({ namespace: 'payments', filter: 'CrashLoop' });
+    ).toEqual({ filter: 'CrashLoop' });
   });
 
   it('does not include a param for label selector — there is no URL binding for it', () => {
@@ -73,12 +126,54 @@ describe('buildSavedViewSearchParams', () => {
   });
 });
 
-describe('buildSavedViewBaseUrl', () => {
-  beforeEach(() => {
-    mockCreateRouteURL.mockReset();
-    mockCreateRouteURL.mockReturnValue('/c/prod/pods');
+describe('buildSavedViewLinkTarget', () => {
+  it('targets the list route with search params when there is no captured resourceName', () => {
+    const target = buildSavedViewLinkTarget(
+      makeView({ filters: { namespaces: ['payments'], search: 'CrashLoop' } })
+    );
+    expect(target).toEqual({
+      routeName: 'pods',
+      params: { cluster: 'prod' },
+      search: { namespace: 'payments', filter: 'CrashLoop' },
+    });
   });
 
+  it('targets the resource details route when resourceName + detailsRoute + namespace are all present', () => {
+    const target = buildSavedViewLinkTarget(
+      makeView({ filters: { namespaces: ['payments'], resourceName: 'payments-api-xyz' } })
+    );
+    expect(target).toEqual({
+      routeName: 'Pod',
+      params: { cluster: 'prod', namespace: 'payments', name: 'payments-api-xyz' },
+    });
+  });
+
+  it('targets the resource details route for a cluster-scoped resource without needing a namespace', () => {
+    const target = buildSavedViewLinkTarget(
+      makeView({ resource: nodeResource, filters: { resourceName: 'node-1' } })
+    );
+    expect(target).toEqual({
+      routeName: 'Node',
+      params: { cluster: 'prod', name: 'node-1' },
+    });
+  });
+
+  it('falls back to the list when resourceName is set but the resource kind has no detailsRoute', () => {
+    const target = buildSavedViewLinkTarget(
+      makeView({ resource: noDetailsRouteResource, filters: { resourceName: 'widget-1' } })
+    );
+    expect(target.routeName).toBe('widgets');
+    expect(target.search).toEqual({ filter: 'widget-1' });
+  });
+
+  it('falls back to the list when resourceName is set on a namespaced resource but no namespace was captured', () => {
+    const target = buildSavedViewLinkTarget(makeView({ filters: { resourceName: 'payments-api-xyz' } }));
+    expect(target.routeName).toBe('pods');
+    expect(target.search).toEqual({ filter: 'payments-api-xyz' });
+  });
+});
+
+describe('buildSavedViewBaseUrl', () => {
   it('delegates to Router.createRouteURL with the resource route name and cluster', () => {
     buildSavedViewBaseUrl(makeView());
     expect(mockCreateRouteURL).toHaveBeenCalledWith('pods', { cluster: 'prod' });
@@ -90,14 +185,17 @@ describe('buildSavedViewBaseUrl', () => {
     );
     expect(url).not.toContain('?');
   });
+
+  it('resolves straight to the resource details path when captured, still with no query string', () => {
+    const url = buildSavedViewBaseUrl(
+      makeView({ filters: { namespaces: ['payments'], resourceName: 'payments-api-xyz' } })
+    );
+    expect(url).toBe('/c/prod/pods/payments/payments-api-xyz');
+    expect(url).not.toContain('?');
+  });
 });
 
 describe('buildSavedViewUrl', () => {
-  beforeEach(() => {
-    mockCreateRouteURL.mockReset();
-    mockCreateRouteURL.mockReturnValue('/c/prod/pods');
-  });
-
   it('returns the base URL unchanged when there are no namespace/search filters', () => {
     const result = buildSavedViewUrl(makeView({ filters: {} }));
     expect(result.url).toBe('/c/prod/pods');
@@ -108,6 +206,13 @@ describe('buildSavedViewUrl', () => {
       makeView({ filters: { namespaces: ['payments', 'billing'], search: 'CrashLoop' } })
     );
     expect(result.url).toBe('/c/prod/pods?namespace=payments+billing&filter=CrashLoop');
+  });
+
+  it('links directly to the resource details page when a resourceName was captured', () => {
+    const result = buildSavedViewUrl(
+      makeView({ filters: { namespaces: ['payments'], resourceName: 'payments-api-xyz' } })
+    );
+    expect(result.url).toBe('/c/prod/pods/payments/payments-api-xyz');
   });
 
   it('reports no unapplied filters when the view has none', () => {

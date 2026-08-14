@@ -43,12 +43,11 @@ interface DetailsResource {
  * the actual resource object — same whether that view is shown as a full
  * page or inside an Activity popup.
  *
- * There's no "specific resource" concept in the saved-view data model
- * (deliberately — see DECISIONS.md), so this captures the resource's exact
- * name as a search filter instead: opening the resulting saved view takes
- * you to the resource's list with a reminder to type that exact name,
- * which — since Headlamp's own search matches by name — narrows the list
- * down to just this one resource.
+ * Captures the resource's exact name as `filters.resourceName`. When
+ * Headlamp exposes a details route for this resource kind (most built-in
+ * kinds do — see `ResourceRef.detailsRoute`), opening the resulting saved
+ * view jumps straight to this resource's own details page. Otherwise it
+ * falls back to the list, pre-filtered to this exact name.
  *
  * Also tracks itself as the "last viewed details resource" (see
  * logsActivityTracking.ts) — the only way to open the separate Logs
@@ -82,7 +81,7 @@ export function SaveResourceDetailsAction({ resource }: { resource: DetailsResou
     resource: catalogEntry,
     filters: {
       namespaces: namespace ? [namespace] : undefined,
-      search: name,
+      resourceName: name,
     },
   };
 
@@ -99,9 +98,8 @@ export function SaveResourceDetailsAction({ resource }: { resource: DetailsResou
           title="Create Saved View"
           submitLabel="Create"
           helperNote={
-            `Prefilled from ${resource.kind} "${name}". Saved views don't target a single resource ` +
-            'directly — this searches by its exact name instead, which narrows the list to just this ' +
-            'one when you open it.'
+            `Prefilled from ${resource.kind} "${name}" — opening this saved view later will jump ` +
+            'straight to it, not just filter the list.'
           }
           initialValues={initialValues}
           onClose={() => setOpen(false)}

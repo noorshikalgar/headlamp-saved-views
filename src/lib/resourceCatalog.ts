@@ -36,6 +36,10 @@ export function getResourceCatalog(): ResourceRef[] {
       const apiVersion = Array.isArray(apiVersionValue) ? apiVersionValue[0] : apiVersionValue;
       const kind = (ResourceClass as { kind?: string }).kind;
       const routeName = (ResourceClass as { listRoute?: string }).listRoute;
+      // Static property inherited via the ResourceClass prototype chain —
+      // confirmed live (`K8s.ResourceClasses.Pod.detailsRoute === "Pod"`)
+      // even though it doesn't show up via Object.getOwnPropertyNames.
+      const detailsRoute = (ResourceClass as { detailsRoute?: string }).detailsRoute;
       const isNamespaced = (ResourceClass as { isNamespaced?: boolean }).isNamespaced;
 
       if (!kind || !apiVersion || !routeName) {
@@ -46,6 +50,7 @@ export function getResourceCatalog(): ResourceRef[] {
         kind,
         apiVersion,
         routeName,
+        detailsRoute,
         scope: isNamespaced ? 'namespaced' : 'cluster',
       });
     } catch {

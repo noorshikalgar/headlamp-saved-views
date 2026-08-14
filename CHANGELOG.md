@@ -34,6 +34,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   (`?namespace=...&filter=...`), found by reading the actual component
   source and confirmed live on a fresh page load. Label selector remains
   unsupported (no URL binding exists for it).
+- **Saved views captured from a specific resource's details view or its
+  logs now open straight to that resource's own details page**, not a
+  filtered list — `K8s.ResourceClasses.<Kind>.detailsRoute` (a public
+  static property, confirmed live) resolves a direct link like
+  `/c/prod/pods/payments/payments-api-xyz`. Applies to the table's Open
+  button and pinned sidebar favorites alike. There is still no way to
+  auto-open the Logs view itself from there — Headlamp's own "Show Logs"
+  button renders a private, unexported component not reachable through the
+  public plugin API (confirmed live) — so the details page, one click from
+  Show Logs, is as far as this goes.
 
 ### Fixed
 
@@ -70,3 +80,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   unconditionally, producing a malformed double query string. Pinned
   favorites now use a query-string-free URL; the table's Open button
   (which doesn't have this problem) keeps full filter auto-apply.
+- (Pre-release) Opening a view captured from a resource's logs still only
+  navigated to the filtered list, requiring an extra click to actually
+  reach the pod — found via live testing after namespace/search auto-apply
+  shipped. Now resolved via the direct resource-details link above.

@@ -93,26 +93,30 @@ filters, favorite) are configured when you create or edit it.
   "Save Current View" button, for when you're already there.
 - **Save a view for this &lt;kind&gt;** — a button inside a resource's own
   details view (works whether that's opened as a full page or Headlamp's
-  Activity popup). Since a saved view always targets a list, not one
-  specific resource, this prefills the resource's exact name as a search
-  filter instead of trying to save "just this pod" directly — opening the
-  result later narrows the list down to that one resource once you
-  type/apply the search.
+  Activity popup). Captures the resource's exact name — opening the
+  resulting saved view later jumps straight to that resource's own details
+  page (Headlamp exposes a direct route for most built-in kinds), not just
+  a filtered list.
 - **"Save View" while viewing logs** — Headlamp's pod logs viewer opens as
   its own separate Activity, distinct from the pod's details view, so the
   button above doesn't appear inside it. The app-bar "Save View" button
   handles this instead: if a specific pod's logs are open when you click
-  it, it prefills that pod's exact name as a search filter automatically —
-  no separate button to find inside the logs panel.
-- **Open** — navigates to the saved cluster + resource list, **with
+  it, it prefills that pod's exact name automatically, with the same
+  jump-straight-to-it behavior above — no separate button to find inside
+  the logs panel. It cannot jump into the logs view itself (Headlamp
+  doesn't expose a way to open that from a plugin); the details page, one
+  click from "Show Logs", is as close as it gets.
+- **Open** — for a view that targets one specific captured resource (from
+  either flow above), jumps straight to that resource's own details page.
+  Otherwise, navigates to the saved cluster + resource list **with
   namespace and search filters already applied** (Headlamp's list views
   support this via URL query params — `?namespace=...&filter=...`). A
   saved view with a label selector is the one exception — Headlamp has no
   URL-bindable concept of one, so a tooltip on Open tells you to apply it
-  manually. **Note:** this full auto-apply only works from the **table's**
-  Open button — pinned sidebar favorites (below) only carry cluster +
-  resource, not namespace/search, because of a Headlamp sidebar quirk (see
-  [Limitations](#10-limitations)).
+  manually. The jump-straight-to-a-resource behavior works identically
+  from the table's Open button and pinned sidebar favorites; plain
+  namespace/search auto-apply on a list-style view is table-only — see
+  [Limitations](#10-limitations).
 - **Edit** — change any field. `createdAt` is preserved; `updatedAt` bumps.
 - **Duplicate** — creates a copy (suffixed "(copy)") to use as a starting
   point for a variant.
@@ -177,17 +181,23 @@ developing this plugin, and pass.
   depending on private internals — which this plugin deliberately avoids
   doing, so it keeps working across Headlamp upgrades. See `DECISIONS.md`
   Decision B.
-- **Pinned sidebar favorites don't auto-apply namespace/search, only the
-  table's Open button does.** Headlamp's built-in list views *do* support
-  namespace/search via URL query params, and the table's Open button uses
-  that. But `registerSidebarEntry` unconditionally appends its own
-  `?namespace=...` to every sidebar link's URL with no check for an
-  existing `?` — a pinned favorite whose own URL already had one produced
-  a broken link (reproduced live: Headlamp's own "page doesn't exist"
-  error). So pinned favorites intentionally carry only cluster + resource;
-  open the Saved Views table for the fully filtered version. Label
-  selector is unsupported everywhere — no URL-bindable concept of one on
-  Headlamp's list views.
+- **Pinned sidebar favorites don't auto-apply namespace/search on a plain
+  list-style view, only the table's Open button does.** Headlamp's
+  built-in list views *do* support namespace/search via URL query params,
+  and the table's Open button uses that. But `registerSidebarEntry`
+  unconditionally appends its own `?namespace=...` to every sidebar link's
+  URL with no check for an existing `?` — a pinned favorite whose own URL
+  already had one produced a broken link (reproduced live: Headlamp's own
+  "page doesn't exist" error). So pinned favorites carrying a query string
+  aren't safe, and this asymmetry only goes away for views that target one
+  specific captured resource (see above) — those resolve to a path with no
+  query string at all, so table and sidebar behave identically for them.
+- **No way to auto-open the Logs view itself**, only the resource's details
+  page (one click from "Show Logs" there). Headlamp's own "Show Logs"
+  button renders a private, unexported component that isn't reachable
+  through the public plugin API — confirmed live by inspecting what it
+  actually dispatches. Label selector is unsupported everywhere too — no
+  URL-bindable concept of one on Headlamp's list views.
 - **Saved views are local to this browser profile.** They are not
   synchronized across machines and are not shareable as-is (a view
   referencing a cluster name may not resolve the same way elsewhere). Import

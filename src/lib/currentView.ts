@@ -138,10 +138,10 @@ export function buildCaptureDialogState(capture: CurrentViewCapture): CaptureDia
  * If a specific resource's logs are currently open (tracked via the public
  * LOGS event — see logsActivityTracking.ts, since there is no way to read
  * this from the URL), enriches the base capture with that resource's exact
- * name as a search filter. Only applies when the tracked resource's
- * cluster and kind actually match the current capture, so a stale tracked
- * value (e.g. logs closed, user navigated to an unrelated list) can't leak
- * into an unrelated saved view.
+ * name. Only applies when the tracked resource's cluster and kind actually
+ * match the current capture, so a stale tracked value (e.g. logs closed,
+ * user navigated to an unrelated list) can't leak into an unrelated saved
+ * view.
  */
 export function enrichCaptureDialogStateWithLogsResource(
   base: CaptureDialogState,
@@ -162,12 +162,12 @@ export function enrichCaptureDialogStateWithLogsResource(
       ...base.initialValues,
       filters: {
         namespaces: logsResource.namespace ? [logsResource.namespace] : undefined,
-        search: logsResource.name,
+        resourceName: logsResource.name,
       },
     },
     helperNote:
       `Logs for ${logsResource.kind} "${logsResource.name}" are currently open — captured its exact ` +
-      'name as a search filter too, so opening this saved view later narrows the list down to just ' +
-      'this one.',
+      'name, so opening this saved view later jumps straight to it (its details page, where Show ' +
+      "Logs is one click away — Headlamp doesn't expose a way to open the logs view itself directly).",
   };
 }

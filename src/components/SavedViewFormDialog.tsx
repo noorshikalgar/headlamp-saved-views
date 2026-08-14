@@ -16,6 +16,7 @@
 
 import { K8s } from '@kinvolk/headlamp-plugin/lib';
 import Alert from '@mui/material/Alert';
+import AlertTitle from '@mui/material/AlertTitle';
 import Autocomplete from '@mui/material/Autocomplete';
 import Button from '@mui/material/Button';
 import Dialog from '@mui/material/Dialog';
@@ -218,6 +219,30 @@ export function SavedViewFormDialog({
               />
             )}
           />
+
+          {values.filters?.resourceName && (
+            <Alert
+              severity="info"
+              action={
+                <Button
+                  color="inherit"
+                  size="small"
+                  onClick={() =>
+                    setValues(v => ({
+                      ...v,
+                      filters: { ...v.filters, resourceName: undefined },
+                    }))
+                  }
+                >
+                  Use filters instead
+                </Button>
+              }
+            >
+              <AlertTitle>Targets one specific resource</AlertTitle>
+              Opening this view will jump straight to &quot;{values.filters.resourceName}&quot;, not
+              the list below with these filters applied.
+            </Alert>
+          )}
 
           <TextField
             label="Search text"

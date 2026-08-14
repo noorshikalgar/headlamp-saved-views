@@ -46,6 +46,18 @@ describe('getResourceCatalog', () => {
     expect(pod?.scope).toBe('namespaced');
   });
 
+  // detailsRoute is a static property inherited via the ResourceClass
+  // prototype chain (not an own property — confirmed live via
+  // K8s.ResourceClasses.Pod.detailsRoute === "Pod", and it doesn't show up
+  // via Object.getOwnPropertyNames but is readable directly). Verified
+  // here against the real, unmocked K8s.ResourceClasses for the same
+  // reason as the rest of this file: fail loudly if Headlamp ever removes
+  // it.
+  it("captures Pod's detailsRoute for deep-linking straight to one resource", () => {
+    const pod = getResourceCatalog().find(ref => ref.kind === 'Pod');
+    expect(pod?.detailsRoute).toBe('Pod');
+  });
+
   it('includes at least one cluster-scoped kind', () => {
     const clusterScoped = getResourceCatalog().filter(ref => ref.scope === 'cluster');
     expect(clusterScoped.length).toBeGreaterThan(0);
