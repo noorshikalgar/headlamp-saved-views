@@ -99,7 +99,9 @@ filters, favorite) are configured when you create or edit it.
 - **Duplicate** — creates a copy (suffixed "(copy)") to use as a starting
   point for a variant.
 - **Favorite** — pins a view to the top of the list (favorites sort first,
-  then most-recently-updated); also a sortable table column.
+  then most-recently-updated); also a sortable table column. Up to 5
+  favorites additionally appear as direct links nested under **Saved
+  Views** in the sidebar — one click, no need to open the table at all.
 - **Delete** — requires confirmation; cannot be undone.
 - **Search** — the search box on the Saved Views page filters your saved
   views by name/description/cluster/resource/filters. It does not search

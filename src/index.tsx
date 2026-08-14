@@ -21,8 +21,10 @@ import {
 } from '@kinvolk/headlamp-plugin/lib';
 import { SaveCurrentViewAppBarAction } from './components/SaveCurrentViewAppBarAction';
 import { SavedViewsPage } from './components/SavedViewsPage';
+import { SidebarFavoritesSync } from './components/SidebarFavoritesSync';
 
 registerAppBarAction(SaveCurrentViewAppBarAction);
+registerAppBarAction(SidebarFavoritesSync);
 
 registerSidebarEntry({
   parent: null,

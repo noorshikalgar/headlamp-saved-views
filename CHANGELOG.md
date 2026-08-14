@@ -18,6 +18,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   a live Headlamp instance and a local kind cluster.
 - Saved Views list rendered as a sortable table (matching Headlamp's own
   resource lists) instead of a card layout, for a more native, compact fit.
+- Up to 5 favorited views are pinned as direct links under **Saved Views**
+  in the sidebar for one-click access, kept in sync as favorites change.
 
 ### Fixed
 

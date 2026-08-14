@@ -136,6 +136,34 @@ schema-versioned, so import/export can be added later as a pure
 serialize/validate layer on top of the existing `src/store` module without
 changing the persisted shape.
 
+## Pinning favorites in the sidebar
+
+Per the original spec's "if practical, show a small number of pinned
+favorites under the main entry" — implemented via up to 5 child
+`registerSidebarEntry` calls under the `saved-views` parent, each a direct
+link to the view's resolved resource URL (`useClusterURL: false`, since the
+view's own cluster may not be the currently selected one).
+
+Two non-obvious things, found only by testing live against a real
+instance:
+
+- `registerSidebarEntry` is a plain Redux dispatch keyed by entry `name`,
+  so it's safe to call reactively as favorites change (confirmed by
+  reading `sidebarSlice.js`: `state.entries[name] = payload`).
+- `registerSidebarEntryFilter`, by contrast, *appends* to an array of
+  filter functions on every call (`state.filters.push(...)`) — calling it
+  reactively would accumulate a new filter on every favorite toggle. It's
+  registered exactly once, at module load, closing over a mutable slot
+  count the sync effect updates.
+- The filter is only *re-evaluated* when the sidebar's Redux state actually
+  changes. The first implementation skipped dispatching for unused slots
+  when the favorites list shrank — e.g. going from 1 favorite to 0 did
+  nothing, so nothing triggered a re-render, so the stale entry stayed
+  pinned forever. Fixed by always dispatching all `MAX_PINNED_FAVORITES`
+  slots on every run (unused ones get an empty entry that the filter then
+  hides), guaranteeing a state change every time. See
+  `src/components/SidebarFavoritesSync.tsx`.
+
 ## Routing scheme
 
 The plugin registers:
