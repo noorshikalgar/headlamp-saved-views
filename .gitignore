@@ -1,0 +1,26 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+build/
+
+# Packaged plugin archives
+*.tar.gz
+*.tar.gz.sha256
+
+# Storybook
+storybook-static/
+
+# Test/coverage output
+coverage/
+
+# Tooling caches
+.eslintcache
+
+# OS
+.DS_Store
+
+# Editors
+.idea/
+*.swp
