@@ -15,7 +15,7 @@
  */
 
 import { Router, Utils } from '@kinvolk/headlamp-plugin/lib';
-import { ResourceRef } from '../types';
+import { NewSavedViewInput, ResourceRef } from '../types';
 import { getResourceCatalog } from './resourceCatalog';
 
 export interface CurrentViewCapture {
@@ -93,38 +93,42 @@ function matchesListPath(pathname: string, routePath: string, cluster: string | 
 
 /**
  * "Save Current View" has to capture state while the user is actually on a
- * resource list page — by the time they've navigated to the Saved Views
- * page itself, `window.location` no longer reflects that page, so a button
- * that only lives on the Saved Views page can never observe it (confirmed
- * live against a real Headlamp instance, not just unit tests). The fix is
- * a `registerAppBarAction` button that's present everywhere, which captures
- * the view at click time and hands it to the Saved Views page via query
- * parameters on navigation — a plain, public URL mechanism, not shared
- * component state or storage.
+ * resource list page — capture itself (above) already handles that
+ * correctly, since it reads `window.location` synchronously at click time,
+ * before any navigation happens. What it must NOT do is navigate the user
+ * away to show the resulting dialog: an earlier version routed to the
+ * Saved Views page and handed the capture off via URL query params, which
+ * left the user on a different page than the one they clicked from — a
+ * confusing detour for no reason, since nothing about opening a dialog
+ * requires changing the route. Callers should render the create dialog
+ * directly wherever the "Save View" trigger lives (see
+ * `SaveCurrentViewAppBarAction.tsx`), using this function to compute its
+ * prefilled values and explanatory note from a capture.
  */
-export const CAPTURE_CLUSTER_PARAM = 'svCluster';
-export const CAPTURE_RESOURCE_ROUTE_PARAM = 'svResource';
-
-export function buildCaptureQueryParams(capture: CurrentViewCapture): string {
-  const params = new URLSearchParams();
-  if (capture.cluster) {
-    params.set(CAPTURE_CLUSTER_PARAM, capture.cluster);
-  }
-  if (capture.resource) {
-    params.set(CAPTURE_RESOURCE_ROUTE_PARAM, capture.resource.routeName);
-  }
-  return params.toString();
+export interface CaptureDialogState {
+  initialValues?: Partial<NewSavedViewInput>;
+  helperNote: string;
 }
 
-export interface ParsedCaptureParams {
-  cluster: string | null;
-  resourceRouteName: string | null;
-}
+const CAPTURE_MATCHED_NOTE =
+  'Captured: this cluster and resource type only — a general "Pod list" style view, not a specific ' +
+  'pod or its logs, even if you had one open. Headlamp doesn’t expose to plugins whether a details ' +
+  'or logs panel is open on top of the list, only the underlying page. Namespace filter and search ' +
+  'text also can’t be read automatically, so add them below if you want them saved.';
 
-export function parseCaptureQueryParams(search: string): ParsedCaptureParams {
-  const params = new URLSearchParams(search);
+const CAPTURE_UNMATCHED_NOTE =
+  "That page isn't a recognized built-in resource list, so nothing could be prefilled automatically. " +
+  'Fill in the fields below to save a view.';
+
+export function buildCaptureDialogState(capture: CurrentViewCapture): CaptureDialogState {
+  if (!capture.resource) {
+    return {
+      initialValues: capture.cluster ? { cluster: capture.cluster } : undefined,
+      helperNote: CAPTURE_UNMATCHED_NOTE,
+    };
+  }
   return {
-    cluster: params.get(CAPTURE_CLUSTER_PARAM),
-    resourceRouteName: params.get(CAPTURE_RESOURCE_ROUTE_PARAM),
+    initialValues: { cluster: capture.cluster ?? '', resource: capture.resource },
+    helperNote: CAPTURE_MATCHED_NOTE,
   };
 }

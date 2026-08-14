@@ -64,3 +64,7 @@ export function getResourceCatalog(): ResourceRef[] {
 export function findResourceByRouteName(routeName: string): ResourceRef | undefined {
   return getResourceCatalog().find(ref => ref.routeName === routeName);
 }
+
+export function findResourceCatalogEntryByKind(kind: string): ResourceRef | undefined {
+  return getResourceCatalog().find(ref => ref.kind === kind);
+}

@@ -15,7 +15,11 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { findResourceByRouteName, getResourceCatalog } from './resourceCatalog';
+import {
+  findResourceByRouteName,
+  findResourceCatalogEntryByKind,
+  getResourceCatalog,
+} from './resourceCatalog';
 
 // Deliberately exercised against the real `K8s.ResourceClasses` (no
 // mocking) so this test fails loudly if Headlamp ever removes the static
@@ -68,5 +72,21 @@ describe('findResourceByRouteName', () => {
 
   it('returns undefined for an unknown route name', () => {
     expect(findResourceByRouteName('not-a-real-route-name')).toBeUndefined();
+  });
+});
+
+describe('findResourceCatalogEntryByKind', () => {
+  it('finds a known resource by its Kubernetes Kind', () => {
+    expect(findResourceCatalogEntryByKind('Pod')).toEqual(
+      getResourceCatalog().find(ref => ref.kind === 'Pod')
+    );
+  });
+
+  it('returns undefined for an unknown kind', () => {
+    expect(findResourceCatalogEntryByKind('NotARealKind')).toBeUndefined();
+  });
+
+  it('is case-sensitive, matching Kubernetes Kind casing exactly', () => {
+    expect(findResourceCatalogEntryByKind('pod')).toBeUndefined();
   });
 });

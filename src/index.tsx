@@ -16,15 +16,18 @@
 
 import {
   registerAppBarAction,
+  registerDetailsViewSection,
   registerRoute,
   registerSidebarEntry,
 } from '@kinvolk/headlamp-plugin/lib';
 import { SaveCurrentViewAppBarAction } from './components/SaveCurrentViewAppBarAction';
 import { SavedViewsPage } from './components/SavedViewsPage';
+import { SaveResourceDetailsAction } from './components/SaveResourceDetailsAction';
 import { SidebarFavoritesSync } from './components/SidebarFavoritesSync';
 
 registerAppBarAction(SaveCurrentViewAppBarAction);
 registerAppBarAction(SidebarFavoritesSync);
+registerDetailsViewSection(SaveResourceDetailsAction);
 
 registerSidebarEntry({
   parent: null,

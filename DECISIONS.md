@@ -72,10 +72,14 @@ to be wrong in two ways):
    the Saved Views page, not whatever resource list the user came from. The
    fix is `registerAppBarAction` (`src/components/SaveCurrentViewAppBarAction.tsx`):
    a "Save View" button present in the app bar on every page, which captures
-   the view at the actual moment of intent and hands the result to the Saved
-   Views page via plain URL query parameters (`svCluster`, `svResource`) on
-   navigation — still a public, URL-based mechanism, not shared component
-   state or storage.
+   the view at the actual moment of intent (synchronously, at click time,
+   before any navigation) and renders the create dialog itself, right there.
+   An earlier version instead navigated to the Saved Views page and handed
+   the capture off via URL query params — technically working, but a
+   confusing detour that took the user away from the page they clicked from
+   for no reason, since nothing about showing a dialog requires changing the
+   route. Found by actually clicking through the flow, not just unit-testing
+   the capture logic in isolation.
 2. Headlamp uses hash-based routing everywhere (confirmed live:
    `window.location.pathname` is always `/`; the real route lives in
    `window.location.hash`, e.g. `#/c/prod/pods`). `captureCurrentView()`
@@ -88,6 +92,35 @@ to be wrong in two ways):
 
 Both are covered by `src/lib/currentView.test.ts`, with the mocked route
 shapes corrected to match what's actually observed from a live instance.
+
+**Further revision — saving a specific resource, not just a list.** A user
+correctly pushed back on the app-bar "Save View" button: opening a pod's
+details/logs (which Headlamp renders as an "Activity" popup — confirmed
+live, it never changes `window.location`) and clicking Save Current View
+only ever captured "Pod, this cluster," never that specific pod. Checked
+whether this is fixable: `Activity.launch/close/update` and `useActivity()`
+are public exports, but `useActivity()` only works *from inside* an
+already-open Activity — there is no exported way for an unrelated
+component to enumerate currently-open Activities (the backing
+`activitySlice` Redux state isn't exported). So the app bar genuinely can't
+know this. The real fix is a different, more precise entry point:
+`registerDetailsViewSection` (`src/components/SaveResourceDetailsAction.tsx`)
+renders inside the resource's own details view — the same view whether
+shown as an Activity or a full page — and is handed the actual resource
+object directly (kind, `getName()`, `getNamespace()`, `.cluster`). Since
+there's deliberately no "specific resource" concept in the saved-view data
+model (Decision A), this captures the resource's exact name as a `search`
+filter instead: opening the resulting saved view lands on that resource's
+list with a reminder to enter that exact name, which — since Headlamp's
+own search matches by name — narrows the list down to just that one
+resource. No schema change needed.
+
+Also narrowed the app-bar "Save View" button itself to only render on
+pages `captureCurrentView()` recognizes as a resource list — it was
+showing (uselessly) on Settings, Home, and dashboard pages like Workloads
+overview. Made reactive to route changes via `useLocation()` from
+`react-router-dom` (a shared dependency, not a private internal) — without
+it, nothing would trigger a re-render when only the hash changes.
 
 ## Decision C — Cluster identity
 

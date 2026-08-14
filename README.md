@@ -83,15 +83,21 @@ filters, favorite) are configured when you create or edit it.
 - **Create Saved View** — opens a blank form: name, description, cluster,
   resource type, and optional filters (namespaces, search text, label
   selector).
-- **Save View** — a button in Headlamp's app bar, visible on every page.
-  Click it from a resource list (e.g. Pods) to open the create form
-  prefilled with what can be reliably determined from that page (cluster
-  and, if it's a recognized built-in resource list, that resource's kind).
-  Namespace filter and search text are **not** auto-filled — see
-  [Limitations](#10-limitations) for why — so add them yourself if you want
-  them saved. The Saved Views page also has its own "Save Current View"
-  button, which behaves the same way if you're already there (it just won't
-  have a resource list to prefill from).
+- **Save View** — a button in Headlamp's app bar, shown only when you're on
+  a recognized built-in resource list (Pods, Services, ...) — it doesn't
+  appear on Settings, Home, or dashboard-style pages where there's nothing
+  useful to capture. Click it to open the create form prefilled with the
+  cluster and resource kind. Namespace filter and search text are **not**
+  auto-filled — see [Limitations](#10-limitations) for why — so add them
+  yourself if you want them saved. The Saved Views page also has its own
+  "Save Current View" button, for when you're already there.
+- **Save a view for this &lt;kind&gt;** — a button inside a resource's own
+  details view (works whether that's opened as a full page or Headlamp's
+  Activity popup — e.g. clicking a pod to see its logs). Since a saved view
+  always targets a list, not one specific resource, this prefills the
+  resource's exact name as a search filter instead of trying to save "just
+  this pod" directly — opening the result later narrows the list down to
+  that one resource once you type/apply the search.
 - **Open** — navigates to the saved cluster + resource list. If the view has
   namespace/search/label-selector filters, a tooltip on the Open button
   tells you what to apply manually after the page opens.

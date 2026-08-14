@@ -15,11 +15,7 @@
  */
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import {
-  buildCaptureQueryParams,
-  captureCurrentView,
-  parseCaptureQueryParams,
-} from './currentView';
+import { buildCaptureDialogState, captureCurrentView } from './currentView';
 
 const mockGetCluster = vi.fn();
 const mockGetRoute = vi.fn();
@@ -137,41 +133,24 @@ describe('captureCurrentView', () => {
   });
 });
 
-describe('buildCaptureQueryParams / parseCaptureQueryParams', () => {
-  it('round-trips a capture with both cluster and resource', () => {
-    const capture = {
-      cluster: 'prod',
-      resource: { kind: 'Pod', apiVersion: 'v1', routeName: 'pods', scope: 'namespaced' as const },
-    };
-    const query = buildCaptureQueryParams(capture);
-    expect(parseCaptureQueryParams(`?${query}`)).toEqual({
-      cluster: 'prod',
-      resourceRouteName: 'pods',
-    });
+describe('buildCaptureDialogState', () => {
+  const resource = { kind: 'Pod', apiVersion: 'v1', routeName: 'pods', scope: 'namespaced' as const };
+
+  it('prefills cluster and resource when both were captured', () => {
+    const state = buildCaptureDialogState({ cluster: 'prod', resource });
+    expect(state.initialValues).toEqual({ cluster: 'prod', resource });
+    expect(state.helperNote).toMatch(/captured: this cluster and resource type only/i);
   });
 
-  it('round-trips a capture with only a cluster (unmatched route)', () => {
-    const query = buildCaptureQueryParams({ cluster: 'prod', resource: null });
-    expect(parseCaptureQueryParams(`?${query}`)).toEqual({
-      cluster: 'prod',
-      resourceRouteName: null,
-    });
+  it('prefills only the cluster when no resource route matched', () => {
+    const state = buildCaptureDialogState({ cluster: 'prod', resource: null });
+    expect(state.initialValues).toEqual({ cluster: 'prod' });
+    expect(state.helperNote).toMatch(/isn't a recognized built-in resource list/i);
   });
 
-  it('produces an empty query string when nothing was captured', () => {
-    expect(buildCaptureQueryParams({ cluster: null, resource: null })).toBe('');
-  });
-
-  it('parses missing params as null rather than throwing', () => {
-    expect(parseCaptureQueryParams('')).toEqual({ cluster: null, resourceRouteName: null });
-    expect(parseCaptureQueryParams('?unrelated=1')).toEqual({
-      cluster: null,
-      resourceRouteName: null,
-    });
-  });
-
-  it('URL-encodes a cluster name with special characters and decodes it back', () => {
-    const query = buildCaptureQueryParams({ cluster: 'my cluster/name', resource: null });
-    expect(parseCaptureQueryParams(`?${query}`).cluster).toBe('my cluster/name');
+  it('prefills nothing when neither cluster nor resource were captured', () => {
+    const state = buildCaptureDialogState({ cluster: null, resource: null });
+    expect(state.initialValues).toBeUndefined();
+    expect(state.helperNote).toMatch(/isn't a recognized built-in resource list/i);
   });
 });

@@ -15,34 +15,61 @@
  */
 
 import { Icon } from '@iconify/react';
-import { Router } from '@kinvolk/headlamp-plugin/lib';
 import Button from '@mui/material/Button';
-import { buildCaptureQueryParams, captureCurrentView } from '../lib/currentView';
+import { useState } from 'react';
+import { useLocation } from 'react-router-dom';
+import { buildCaptureDialogState, captureCurrentView, CaptureDialogState } from '../lib/currentView';
+import { useSavedViews } from '../store/configStore';
+import { SavedViewFormDialog } from './SavedViewFormDialog';
 
 /**
- * Registered globally via registerAppBarAction so it's present on whatever
- * page the user is actually viewing — including resource list pages. This
- * is the real "Save Current View" trigger; see currentView.ts for why a
- * button living only on the Saved Views page can't do this.
+ * Registered globally via registerAppBarAction so it's present wherever
+ * this decides to render itself — but it only renders on pages
+ * captureCurrentView() recognizes as a built-in resource list (Pods,
+ * Services, ...), not on Settings, Home, or anywhere else there's nothing
+ * meaningful to capture. `useLocation()` (react-router-dom, a shared
+ * dependency, not a private internal) is what makes this reactive to route
+ * changes — without it, nothing would trigger a re-render when the hash
+ * changes, since captureCurrentView() reads window.location directly.
+ *
+ * This is the real "Save Current View" trigger; see currentView.ts for why
+ * a button living only on the Saved Views page can't do this. The dialog
+ * is rendered right here, not by navigating to the Saved Views page —
+ * capture happens synchronously at click time, so there was never a reason
+ * to leave the page the user was on. An earlier version did navigate away,
+ * which was confusing in practice: it's fixed by owning the dialog
+ * directly.
  */
 export function SaveCurrentViewAppBarAction() {
-  function handleClick() {
-    const capture = captureCurrentView();
-    if (!capture.cluster) {
-      return;
-    }
-    const base = Router.createRouteURL('saved-views', { cluster: capture.cluster });
-    const query = buildCaptureQueryParams(capture);
-    window.location.hash = query ? `${base}?${query}` : base;
+  useLocation();
+  const { create } = useSavedViews();
+  const [dialogState, setDialogState] = useState<CaptureDialogState | null>(null);
+
+  const capture = captureCurrentView();
+  if (!capture.resource) {
+    return null;
   }
 
   return (
-    <Button
-      size="small"
-      onClick={handleClick}
-      startIcon={<Icon icon="mdi:content-save-outline" width={16} />}
-    >
-      Save View
-    </Button>
+    <>
+      <Button
+        size="small"
+        onClick={() => setDialogState(buildCaptureDialogState(capture))}
+        startIcon={<Icon icon="mdi:content-save-outline" width={16} />}
+      >
+        Save View
+      </Button>
+      {dialogState && (
+        <SavedViewFormDialog
+          open
+          title="Create Saved View"
+          submitLabel="Create"
+          helperNote={dialogState.helperNote}
+          initialValues={dialogState.initialValues}
+          onClose={() => setDialogState(null)}
+          onSubmit={create}
+        />
+      )}
+    </>
   );
 }
